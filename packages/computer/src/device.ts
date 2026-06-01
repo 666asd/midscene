@@ -62,6 +62,22 @@ const EDGE_SCROLL_STEPS = 400;
 // minimum of 10 steps so small distances still feel momentum-like.
 const PHASED_PIXELS_PER_STEP = 30;
 const PHASED_MIN_STEPS = 10;
+// libnut fallback (Windows / Linux, and macOS when phased-scroll is
+// unavailable). libnut.scrollMouse(x, y) is *not* a portable pixel API:
+//   - macOS:   y is a CG pixel scroll delta
+//   - Linux:   y is the number of XButton4/5 press-release pairs (1 = one
+//              wheel notch)
+//   - Windows: y is forwarded directly to MOUSEEVENTF_WHEEL's `mouseData`,
+//              where the unit is WHEEL_DELTA (= 120) per detent
+// Calling scrollMouse(0, 6) on Windows therefore sends `mouseData = 6` —
+// far below one detent — which gets silently accumulated and is frequently
+// discarded by Chromium's WheelEventQueue (Electron apps like Lark/Feishu
+// see this as "scroll did nothing"). Always emit one detent per call, and
+// pace the calls so blink doesn't coalesce them into a single tick.
+const LIBNUT_FALLBACK_PIXELS_PER_DETENT = 100;
+const LIBNUT_FALLBACK_TICK_DELAY_MS = 30;
+const LIBNUT_FALLBACK_MAX_DETENTS = 200;
+const LIBNUT_FALLBACK_DETENT_AMOUNT = process.platform === 'win32' ? 120 : 1;
 // Default scroll distance is 70% of the screen size on the relevant axis,
 // matching the web puppeteer/chrome-extension behavior so a model that simply
 // says "scroll down" without a distance gets a roughly one-screen scroll on
@@ -77,6 +93,9 @@ type EdgeScrollType =
 interface EdgeScrollStrategy {
   direction: ScrollDirection;
   key: 'home' | 'end';
+  // Unit vector for libnut.scrollMouse direction. Magnitude is applied
+  // separately by emitDetents() so each call is one full detent on every
+  // platform (see LIBNUT_FALLBACK_DETENT_AMOUNT).
   libnut: readonly [number, number];
 }
 
@@ -84,10 +103,10 @@ interface EdgeScrollStrategy {
 // only requires one entry here; the three backends (phased binary /
 // AppleScript / libnut) all read from the same spec.
 const EDGE_SCROLL_SPEC: Record<EdgeScrollType, EdgeScrollStrategy> = {
-  scrollToTop: { direction: 'up', key: 'home', libnut: [0, 10] },
-  scrollToBottom: { direction: 'down', key: 'end', libnut: [0, -10] },
-  scrollToLeft: { direction: 'left', key: 'home', libnut: [-10, 0] },
-  scrollToRight: { direction: 'right', key: 'end', libnut: [10, 0] },
+  scrollToTop: { direction: 'up', key: 'home', libnut: [0, 1] },
+  scrollToBottom: { direction: 'down', key: 'end', libnut: [0, -1] },
+  scrollToLeft: { direction: 'left', key: 'home', libnut: [-1, 0] },
+  scrollToRight: { direction: 'right', key: 'end', libnut: [1, 0] },
 };
 
 // macOS AppleScript key code mapping
@@ -886,11 +905,17 @@ Original error: ${lastRawMessage}`,
         return;
       }
 
-      const [dx, dy] = edgeSpec.libnut;
-      for (let i = 0; i < SCROLL_REPEAT_COUNT; i++) {
-        this.inputDriver.scrollMouse(dx, dy);
-        await this.inputDriver.delay(SCROLL_STEP_DELAY);
-      }
+      const [ux, uy] = edgeSpec.libnut;
+      // Edge scrolls want to drive all the way to the boundary. SCROLL_REPEAT_COUNT
+      // (10) detents was chosen for the old single-amount-per-call behavior; it's
+      // still enough to clamp at the top/bottom on any normal page once each
+      // detent is the platform-correct WHEEL_DELTA on Windows.
+      await this.inputDriver.emitScrollDetents(
+        ux * LIBNUT_FALLBACK_DETENT_AMOUNT,
+        uy * LIBNUT_FALLBACK_DETENT_AMOUNT,
+        SCROLL_REPEAT_COUNT,
+        SCROLL_STEP_DELAY,
+      );
       return;
     }
 
@@ -937,16 +962,23 @@ Original error: ${lastRawMessage}`,
         return;
       }
 
-      const ticks = Math.ceil(distance / 100);
-      const directionMap: Record<string, [number, number]> = {
-        up: [0, ticks],
-        down: [0, -ticks],
-        left: [-ticks, 0],
-        right: [ticks, 0],
+      const detents = Math.min(
+        LIBNUT_FALLBACK_MAX_DETENTS,
+        Math.max(1, Math.ceil(distance / LIBNUT_FALLBACK_PIXELS_PER_DETENT)),
+      );
+      const directionUnit: Record<string, [number, number]> = {
+        up: [0, 1],
+        down: [0, -1],
+        left: [-1, 0],
+        right: [1, 0],
       };
-
-      const [dx, dy] = directionMap[direction] || [0, -ticks];
-      this.inputDriver.scrollMouse(dx, dy);
+      const [ux, uy] = directionUnit[direction] || [0, -1];
+      await this.inputDriver.emitScrollDetents(
+        ux * LIBNUT_FALLBACK_DETENT_AMOUNT,
+        uy * LIBNUT_FALLBACK_DETENT_AMOUNT,
+        detents,
+        LIBNUT_FALLBACK_TICK_DELAY_MS,
+      );
       await this.inputDriver.delay(SCROLL_COMPLETE_DELAY);
       return;
     }
