@@ -29,13 +29,16 @@ tasks:
       - sleep: 1000
       # Meta is always the last section in the panel, so a long Param/Output
       # block can push it below the viewport. Scroll the detail panel to the
-      # bottom first so the assertion does not depend on Meta happening to be
-      # visible after collapsing Output.
+      # bottom first so the metadata is on screen for the assertion.
       - aiScroll: the right detail side panel
         direction: down
         scrollType: scrollToBottom
       - sleep: 1000
-      - aiAssert: The Meta section is visible in the right detail side panel and contains metadata entries such as type, status, start, end, or total time
+      # Assert on the metadata content rather than the "Meta" heading: after
+      # scrolling to the bottom the heading itself can move above the viewport,
+      # leaving only the metadata rows visible, so requiring the literal word
+      # "Meta" makes the check flaky.
+      - aiAssert: The right detail side panel shows task metadata entries such as type, status, start, end, or total time
 
   - name: open in playground button
     flow:
