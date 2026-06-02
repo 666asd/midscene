@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { LIBNUT_FALLBACK_EDGE_DETENTS } from '../../src/device';
 import { ComputerInputDriver, type LibNut } from '../../src/input-driver';
 
 function makeDriver(scrollMouse = vi.fn()) {
@@ -63,6 +64,16 @@ describe('ComputerInputDriver.emitScrollDetents', () => {
       [120, 0],
       [120, 0],
     ]);
+  });
+
+  it('edge-scroll fallback aims for the full boundary distance', () => {
+    // Regression: the first cut of this refactor wired edge scrolls to
+    // SCROLL_REPEAT_COUNT (10) detents, which at 100 px/detent is only
+    // ~1000 px — long pages stopped far short of the top/bottom. The
+    // libnut fallback has to target the same EDGE_SCROLL_TOTAL_PX
+    // (50_000 px) the phased path uses, capped at the per-platform
+    // safety ceiling so a bad screen size can't wedge the process.
+    expect(LIBNUT_FALLBACK_EDGE_DETENTS).toBeGreaterThanOrEqual(200);
   });
 
   it('rejects in-flight detents when the driver is destroyed mid-scroll', async () => {

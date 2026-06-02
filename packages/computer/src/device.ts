@@ -78,6 +78,19 @@ const LIBNUT_FALLBACK_PIXELS_PER_DETENT = 100;
 const LIBNUT_FALLBACK_TICK_DELAY_MS = 30;
 const LIBNUT_FALLBACK_MAX_DETENTS = 200;
 const LIBNUT_FALLBACK_DETENT_AMOUNT = process.platform === 'win32' ? 120 : 1;
+// Edge scrolls (scrollToTop / scrollToBottom / ...) must drive all the way to
+// the boundary on every backend. The phased path requests EDGE_SCROLL_TOTAL_PX
+// (50_000 px); the libnut fallback aims for the same distance, capped at
+// LIBNUT_FALLBACK_MAX_DETENTS so a misconfigured screen size can't wedge the
+// process. Chromium clamps wheel events at the boundary, so overshooting is
+// free. Exported for regression coverage.
+export const LIBNUT_FALLBACK_EDGE_DETENTS = Math.min(
+  LIBNUT_FALLBACK_MAX_DETENTS,
+  Math.max(
+    1,
+    Math.ceil(EDGE_SCROLL_TOTAL_PX / LIBNUT_FALLBACK_PIXELS_PER_DETENT),
+  ),
+);
 // Default scroll distance is 70% of the screen size on the relevant axis,
 // matching the web puppeteer/chrome-extension behavior so a model that simply
 // says "scroll down" without a distance gets a roughly one-screen scroll on
@@ -906,15 +919,11 @@ Original error: ${lastRawMessage}`,
       }
 
       const [ux, uy] = edgeSpec.libnut;
-      // Edge scrolls want to drive all the way to the boundary. SCROLL_REPEAT_COUNT
-      // (10) detents was chosen for the old single-amount-per-call behavior; it's
-      // still enough to clamp at the top/bottom on any normal page once each
-      // detent is the platform-correct WHEEL_DELTA on Windows.
       await this.inputDriver.emitScrollDetents(
         ux * LIBNUT_FALLBACK_DETENT_AMOUNT,
         uy * LIBNUT_FALLBACK_DETENT_AMOUNT,
-        SCROLL_REPEAT_COUNT,
-        SCROLL_STEP_DELAY,
+        LIBNUT_FALLBACK_EDGE_DETENTS,
+        LIBNUT_FALLBACK_TICK_DELAY_MS,
       );
       return;
     }
