@@ -27,6 +27,14 @@ tasks:
       # regardless of which task the previous step picked.
       - ai: Click on the "Output" or "Element" section header in the right detail side panel to collapse that section
       - sleep: 1000
+      # Meta is always the last section in the panel, so a long Param/Output
+      # block can push it below the viewport. Scroll the detail panel to the
+      # bottom first so the assertion does not depend on Meta happening to be
+      # visible after collapsing Output.
+      - aiScroll: the right detail side panel
+        direction: down
+        scrollType: scrollToBottom
+      - sleep: 1000
       - aiAssert: The Meta section is visible in the right detail side panel and contains metadata entries such as type, status, start, end, or total time
 
   - name: open in playground button
