@@ -6,6 +6,7 @@ import { doubaoAdapters } from './doubao';
 import { geminiAdapters } from './gemini';
 import { glmAdapters } from './glm';
 import { gptAdapters } from './gpt';
+import { kimiAdapters } from './kimi';
 import { mimoAdapters } from './mimo';
 import { qwenAdapters } from './qwen';
 import { ResolvedModelAdapter } from './resolved';
@@ -24,6 +25,7 @@ export const MODEL_ADAPTER_CONFIGS = {
   ...glmAdapters,
   ...autoGlmAdapters,
   ...gptAdapters,
+  ...kimiAdapters,
   ...mimoAdapters,
 } satisfies Record<TModelFamily, ModelAdapterDefinition>;
 
