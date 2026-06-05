@@ -9,13 +9,17 @@ const buildGeminiChatCompletionParams = (
   input: ChatCompletionCallContext,
 ): ChatCompletionParamsResult => {
   const { midsceneDefaults, userConfig } = input;
-  const { reasoningEffort } = userConfig;
+  const { reasoningEnabled, reasoningEffort } = userConfig;
   const config: Record<string, unknown> = {
     temperature: userConfig.temperature ?? midsceneDefaults.temperature,
+  };
+
+  if (reasoningEnabled !== 'default') {
     // Gemini 3.x cannot fully disable native thinking, so use the lowest
     // supported effort unless the user explicitly requests another level.
-    reasoning_effort: reasoningEffort || 'minimal',
-  };
+    config.reasoning_effort = reasoningEffort || 'minimal';
+  }
+
   return { config };
 };
 

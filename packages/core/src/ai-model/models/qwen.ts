@@ -58,14 +58,15 @@ const buildQwenChatCompletionParams = (
 ): ChatCompletionParamsResult => {
   const { midsceneDefaults, userConfig } = input;
   const { reasoningEnabled, reasoningBudget } = userConfig;
-  const effectiveReasoningEnabled = reasoningEnabled ?? false;
   const config: Record<string, unknown> = {
     temperature: userConfig.temperature ?? midsceneDefaults.temperature,
-    enable_thinking: effectiveReasoningEnabled,
   };
 
-  if (reasoningBudget !== undefined) {
-    config.thinking_budget = reasoningBudget;
+  if (reasoningEnabled !== 'default') {
+    config.enable_thinking = reasoningEnabled ?? false;
+    if (reasoningBudget !== undefined) {
+      config.thinking_budget = reasoningBudget;
+    }
   }
 
   return { config };

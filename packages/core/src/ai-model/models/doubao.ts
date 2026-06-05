@@ -167,16 +167,17 @@ const buildDoubaoChatCompletionParams = (
 ): ChatCompletionParamsResult => {
   const { midsceneDefaults, userConfig } = input;
   const { reasoningEnabled, reasoningEffort } = userConfig;
-  const effectiveReasoningEnabled = reasoningEnabled ?? false;
   const config: Record<string, unknown> = {
     temperature: userConfig.temperature ?? midsceneDefaults.temperature,
-    thinking: {
-      type: effectiveReasoningEnabled ? 'enabled' : 'disabled',
-    },
   };
 
-  if (reasoningEffort) {
-    config.reasoning_effort = reasoningEffort;
+  if (reasoningEnabled !== 'default') {
+    config.thinking = {
+      type: (reasoningEnabled ?? false) ? 'enabled' : 'disabled',
+    };
+    if (reasoningEffort) {
+      config.reasoning_effort = reasoningEffort;
+    }
   }
 
   return { config };

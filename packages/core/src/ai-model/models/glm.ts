@@ -10,13 +10,15 @@ const buildGlmChatCompletionParams = (
 ): ChatCompletionParamsResult => {
   const { midsceneDefaults, userConfig } = input;
   const { reasoningEnabled } = userConfig;
-  const effectiveReasoningEnabled = reasoningEnabled ?? false;
   const config: Record<string, unknown> = {
     temperature: userConfig.temperature ?? midsceneDefaults.temperature,
-    thinking: {
-      type: effectiveReasoningEnabled ? 'enabled' : 'disabled',
-    },
   };
+
+  if (reasoningEnabled !== 'default') {
+    config.thinking = {
+      type: reasoningEnabled ? 'enabled' : 'disabled',
+    };
+  }
 
   return { config };
 };

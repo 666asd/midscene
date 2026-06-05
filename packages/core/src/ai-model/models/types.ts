@@ -1,4 +1,8 @@
-import type { IModelConfig, TIntent } from '@midscene/shared/env';
+import type {
+  IModelConfig,
+  TIntent,
+  TModelReasoningEnabled,
+} from '@midscene/shared/env';
 import type {
   JsonParser,
   JsonParserContext,
@@ -22,7 +26,7 @@ export type {
 export type JsonParserPreset = 'lenient-json';
 
 export interface ReasoningInput {
-  reasoningEnabled?: boolean;
+  reasoningEnabled?: TModelReasoningEnabled;
   reasoningEffort?: string;
   reasoningBudget?: number;
 }
