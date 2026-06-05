@@ -405,6 +405,8 @@ export class ComputerDevice implements AbstractInterface {
    * to avoid focus issues with system overlays (e.g. Spotlight).
    */
   private useAppleScript: boolean;
+  /** Cached result of the elevation check; see isRunningAsAdmin(). */
+  private adminCheckCache?: boolean;
   uri?: string;
 
   readonly inputPrimitives: ComputerInputPrimitives = {
@@ -639,15 +641,25 @@ Available Displays: ${displays.length > 0 ? displays.map((d) => d.name).join(', 
       const msg = `[HealthCheck] WARNING: Mouse control may not be working. Expected (${targetX}, ${targetY}), got (${movedPos.x}, ${movedPos.y}), delta=(${deltaX}, ${deltaY})`;
       console.warn(msg);
       debugDevice(msg);
+    }
 
-      if (process.platform === 'win32' && !this.isRunningAsAdmin()) {
-        const hint =
-          'Midscene is NOT running as Administrator. ' +
-          'Windows blocks mouse/keyboard input to elevated (admin) applications from non-admin processes (UIPI). ' +
-          'Please run your terminal or Node.js as Administrator and try again.';
-        console.error(`\n[HealthCheck] ${hint}\n`);
-        debugDevice(hint);
-      }
+    // Windows UIPI advisory. This must NOT be gated on the moveMouse delta
+    // check above: UIPI does not block cursor movement, it only silently
+    // drops button/key input injected into an elevated (admin) window. So a
+    // non-admin process can pass the move test yet have every click land on
+    // nothing — clicks "do nothing" while the cursor visibly moves to the
+    // right spot. We cannot tell from here whether the target app is actually
+    // elevated, so phrase this as a conditional heads-up (keyed off the
+    // observable symptom) rather than asserting something is wrong — most
+    // non-admin sessions target non-admin apps and work fine.
+    if (process.platform === 'win32' && !this.isRunningAsAdmin()) {
+      const hint =
+        'Heads-up: Midscene is not running as Administrator. ' +
+        'If clicks appear to do nothing while the cursor still moves to the right ' +
+        'position, your target app is likely elevated (admin) and Windows UIPI is ' +
+        'dropping the injected input — run your terminal or Node.js as Administrator.';
+      console.warn(`[HealthCheck] ${hint}`);
+      debugDevice(hint);
     }
 
     // Restore original position
@@ -677,15 +689,21 @@ Available Displays: ${displays.length > 0 ? displays.map((d) => d.name).join(', 
   /**
    * Check if the current process is running with Administrator privileges.
    * Uses "net session" which succeeds only when elevated.
+   *
+   * The result is cached because elevation cannot change during the process
+   * lifetime, and the underlying `execSync('net session')` is a blocking
+   * subprocess spawn that should not run on every connect / health check.
    */
   private isRunningAsAdmin(): boolean {
     if (process.platform !== 'win32') return false;
+    if (this.adminCheckCache !== undefined) return this.adminCheckCache;
     try {
       execSync('net session', { stdio: 'pipe' });
-      return true;
+      this.adminCheckCache = true;
     } catch {
-      return false;
+      this.adminCheckCache = false;
     }
+    return this.adminCheckCache;
   }
 
   async screenshotBase64(): Promise<string> {
