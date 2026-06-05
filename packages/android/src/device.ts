@@ -247,7 +247,13 @@ export class AndroidDevice implements AbstractInterface {
       }),
     ];
 
-    const platformSpecificActions = Object.values(createPlatformActions(this));
+    const platformSpecificActions = Object.values(
+      createPlatformActions(this),
+    ).filter(
+      (action) =>
+        this.options?.useRunAdbShellAction !== false ||
+        !isRunAdbShellAction(action),
+    );
 
     const customActions = this.customActions || [];
     return [...defaultActions, ...platformSpecificActions, ...customActions];
@@ -2082,6 +2088,12 @@ const createPlatformActions = (
     }),
   } as const;
 };
+
+function isRunAdbShellAction(action: DeviceAction<any>): boolean {
+  return (
+    action.name === 'RunAdbShell' || action.interfaceAlias === 'runAdbShell'
+  );
+}
 
 export type DeviceActionAndroidBackButton = DeviceAction<undefined, void>;
 export type DeviceActionAndroidHomeButton = DeviceAction<undefined, void>;
