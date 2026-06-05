@@ -34,7 +34,6 @@ const MEMORY_STEP_NOTES = [
   'Examples:',
   '- If you need to find an item and later assert its details, record the item name and the exact details needed for the assertion, such as status, price, date, owner, description, or other visible fields.',
   '- If you need to compare multiple similar results, record each candidate separately with its exact distinguishing details and visible context.',
-  '- If you need to work through repeated or similar items, keep a ledger of each candidate as a separate entry with its full task-relevant signature. Before acting on a candidate, re-check the current item against the ledger; after deletion, scrolling, saving, or other screen changes, treat old indexes and positions as stale and re-bind from the current screen before continuing.',
   '- If you need to copy information from one place to another, record the exact source value and the target field or UI cue it should be mapped to.',
 ].join('\n');
 
